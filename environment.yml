@@ -1,0 +1,7 @@
+name: hk_market
+
+dependencies:
+  - python=3.11
+  - pip=23.0
+  - pip:
+    - -r requirements.txt
