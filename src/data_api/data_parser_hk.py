@@ -7,7 +7,7 @@ import json
 import pandas as pd
 import logging
 
-from data_api.data_model import DataField, DataPointType, OptionDataFlag, DataModel, SessionType
+from common.data_model import DataField, DataPointType, OptionDataFlag, DataModel, SessionType
 
 logger = logging.Logger(__name__)
 
@@ -98,6 +98,8 @@ def get_field(data_dict: dict[str, any], datapoint_type: DataPointType):
             return data_dict['ric']
         case DataField.CONTRACT:
             return data_dict['con']
+        case DataField.CCY:
+            return data_dict['ccy']
         case DataPointType.LAST:
             return str_to_num(data_dict['ls']) if data_dict['ls'] else None
         case DataPointType.BID:
@@ -115,9 +117,11 @@ def get_field(data_dict: dict[str, any], datapoint_type: DataPointType):
         case DataPointType.PREV_OI:
             return str_to_num(data_dict['oi'], int) if data_dict['oi'] else None
         case DataField.LOT_SIZE:
-            return int(data_dict['lot'])
+            return str_to_num(data_dict['lot'], int)
         case DataField.TICK_SIZE:
             return float(data_dict['tck'])
+        case DataPointType.UPDATE_TIME:
+            return data_dict['updatetime']
         case _:
             logger.error(f'Unhandled {datapoint_type}')
 
@@ -148,19 +152,12 @@ HKEX_STOCK_EP = "getequityquote"
 #?sym={code}&token={token}&lang=eng&qid=0&callback=jQuery0_0"
 def getStockInfo(code: str) -> dict[str, any]:
     stock_data = request_get_json_data(HKEX_STOCK_EP, params={'sym': code})['quote']
-    return {
+    return get_fields(stock_data, [DataField.RIC, DataField.CCY, DataField.LOT_SIZE, DataField.TICK_SIZE,
+                    DataPointType.LAST, DataPointType.PREV_CLOSE, DataPointType.OPEN, DataPointType.UPDATE_TIME]) | {
         'name': stock_data['nm_s'],
         'issued_shares': str_to_num(stock_data['amt_os'], int),
-        'last': str_to_num(stock_data['ls']),
-        'close': str_to_num(stock_data['hc']),
         'close_date': dtm.datetime.strptime(stock_data['hist_closedate'], "%d %b %Y").date(),
-        'open': str_to_num(stock_data['op']) if stock_data['op'] else None,
-        'update_time': stock_data['updatetime'],
-        'ccy': stock_data['ccy'],
-        'lotsize': str_to_num(stock_data['lot'], int),
-        'ticksize': float(stock_data['tck']),
         'index_classification': stock_data['hsic_ind_classification'],
-        'ric': stock_data['ric']
     }
 
 HKEX_INDEX_EP = "getderivativesindex"
@@ -281,21 +278,21 @@ def get_options_chain(code: str, contract_id: str, session_type: SessionType = N
     return res
 
 
-TENORS = [
-    'Overnight',
-    '1 Week',
-    '2 Weeks',
-    '1 Month',
-    '2 Months',
-    '3 Months',
-    '6 Months',
-    '12 Months',
-]
+TENORS = {
+    'Overnight': '0d',
+    '1 Week': '1w',
+    '2 Weeks': '2w',
+    '1 Month': '1m',
+    '2 Months': '2m',
+    '3 Months': '3m',
+    '6 Months': '6m',
+    '12 Months': '12m',
+}
 HIBOR_URL = "https://www.hkab.org.hk/api/hibor?year={year}&month={month}&day={day}"
 def get_rates(as_of: dtm.date) -> dict[str, float]:
     rates_url = HIBOR_URL.format(year=as_of.year, month=as_of.month, day=as_of.day)
     rates_data_raw = request_get_json(rates_url)
-    rates_data = {k: float(v) for k, v in rates_data_raw.items() if k in TENORS}
+    rates_data = {TENORS[k]: float(v) for k, v in rates_data_raw.items() if k in TENORS and v is not None}
     return rates_data
 
 # from pdfminer.pdfpage import PDFPage
