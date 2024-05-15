@@ -1,13 +1,12 @@
 
-import pandas as pd
 import logging
 
-from data_api import data_parser_hk
 from common.data_model import DataField, DataPointType, OptionDataFlag, SessionType
+from volatility.models.option import CallOption, PutOption
+from volatility.models.vol_surface_builder import VolSurfaceModelListed
 
-from models.instruments import EquityIndex, EquityIndexFuture
-from models.option import CallOption, PutOption
-from models.vol_surface_builder import VolSurfaceModel
+from data_api import data_parser_hk
+from models.equity import EquityIndex, EquityIndexFuture
 
 logger = logging.Logger(__name__)
 
@@ -33,26 +32,11 @@ def get_vol_model(code: str = 'HSI', session_type: SessionType = None):
             if OptionDataFlag.PUT in strike_info:
                 put_opt.set_market(val_date, strike_info[OptionDataFlag.PUT][price_type])
             opt_chain[expiry, strike] = (call_opt, put_opt)
-    return VolSurfaceModel(val_date, opt_chain, _rate=5/100)
+    return VolSurfaceModelListed(val_date, opt_chain, _rate=5/100)
 
-def get_vol_surface_data(model_type: int = 2):
+def get_vol_surface_data(model_type: str):
     vol_model = get_vol_model()
-    vs_implied = vol_model.build_implied()
-
-    if model_type == 1:
-        vol_surface = vol_model.build_LV()
-    else:
-        vol_surface = vol_model.build_SABR(beta=1)
-        logger.warning(vol_surface)
+    vol_surface = vol_model.build(model_type)
+    logger.warning(vol_surface)
     # err_list = vol_model.get_calibration_errors(vol_surface)
-    calc_points = []
-    underliers = vol_model.get_underliers(vs_implied)
-    for d, k, _ in vs_implied.nodes:
-        calc_points.append((d, k, vol_surface.get_vol(d, k, underliers[d].price)))
-    for d, u in underliers.items():
-        calc_points.append((d, u.price, vol_surface.get_vol(d, u.price, u.price)))
-    
-    col_names = ['Tenor', 'Strike', 'Vol']
-    vol_surface_df = pd.DataFrame(calc_points, columns=col_names)
-    extra_df = pd.DataFrame(vs_implied.nodes, columns=col_names)
-    return vol_surface_df, extra_df
+    return vol_model.get_graph_info(vol_surface)

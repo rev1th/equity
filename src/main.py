@@ -3,10 +3,10 @@ import datetime as dtm
 import logging
 
 from data_api import data_parser_hk
-
 from market import equity_hk, vol_hk
 
 from common import plotter
+from volatility.lib import plotter as vol_plotter
 
 logger = logging.Logger('')
 logger.setLevel(logging.DEBUG)
@@ -39,12 +39,12 @@ def get_table_data():
 
 if __name__ == "__main__":
     logger.warning(f"Starting at {dtm.datetime.now()}")
-    beta_mtx = evaluate_betas(get_stocks())
-    stocks_beta_spread = equity_hk.get_stock_intraday_data(beta_mtx)
+    # beta_mtx = evaluate_betas(get_stocks())
+    # stocks_beta_spread = equity_hk.get_stock_intraday_data(beta_mtx)
     # plotter.plot_series_multiple(stocks_beta_spread, title='Beta RV')
-    # for idx in INDEX_CODES:
-    #     plotter.plot_series(equity_hk.get_index_futures_data(idx), title=idx)
+    for idx in INDEX_CODES:
+        plotter.plot_series(equity_hk.get_index_futures_data(idx), title=idx)
     # plotter.plot_series(*equity_hk.get_index_futures_spread(INDEX_CODES),
     #                     title='Calendar Spreads', y2_format=',.3%')
-    plotter.plot_series_3d(*vol_hk.get_vol_surface_data())
+    vol_plotter.display_vol_surface(*vol_hk.get_vol_surface_data())
     logger.warning(f"Finished at {dtm.datetime.now()}")
