@@ -1,29 +1,23 @@
-
 from pydantic.dataclasses import dataclass
 import datetime as dtm
 
-from common.models.base_instrument import BaseInstrumentP
-from common.chrono import DayCount
+from common.models.base_instrument import BaseInstrument
+from common.models.future import Future
+from common.chrono.daycount import DayCount
 
 
 @dataclass
-class EquityIndex(BaseInstrumentP):
+class EquityIndex(BaseInstrument):
     pass
 
 @dataclass
-class EquityIndexFuture(BaseInstrumentP):
+class EquityIndexFuture(Future):
     _underlying: EquityIndex
-    _expiry: dtm.date
-
     _daycount: DayCount = DayCount.ACT365
 
     def __post_init__(self):
         if self.name is None:
             self.name = f"{self._underlying.name}_{self._expiry}"
     
-    @property
-    def expiry(self) -> dtm.date:
-        return self._expiry
-    
-    def get_expiry_dcf(self) -> float:
-        return self._daycount.get_dcf(self._value_date, self._expiry)
+    def get_expiry_dcf(self, date: dtm.date) -> float:
+        return self._daycount.get_dcf(date, self._expiry)

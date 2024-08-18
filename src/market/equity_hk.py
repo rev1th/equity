@@ -4,7 +4,7 @@ import datetime as dtm
 import logging
 
 from data_api import data_parser_hk
-from common.data_model import DataField, DataPointType, SessionType
+from common.models.data import DataField, DataPointType, SessionType
 from lib import analytics
 
 logger = logging.Logger(__name__)

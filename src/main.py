@@ -7,6 +7,7 @@ from market import equity_hk, vol_hk
 
 from common import plotter
 from volatility.lib import plotter as vol_plotter
+from volatility.models.vol_types import VolatilityModelType
 
 logger = logging.Logger('')
 logger.setLevel(logging.DEBUG)
@@ -21,7 +22,7 @@ def get_stocks():
     stocks_map = {}
     for ic in series_info.values():
         stocks_map.update(ic)
-    return set.intersection(*[set(ic.keys()) for ic in series_info.values()])
+    return set.union(*[set(ic.keys()) for ic in series_info.values()])
 
 data_parser_hk.set_token()
 def evaluate_betas(stock_ids: list[str], lookbacks: list[str] = ['1m', '3m', '6m', '1y']):
@@ -46,5 +47,5 @@ if __name__ == "__main__":
         plotter.plot_series(equity_hk.get_index_futures_data(idx), title=idx)
     # plotter.plot_series(*equity_hk.get_index_futures_spread(INDEX_CODES),
     #                     title='Calendar Spreads', y2_format=',.3%')
-    vol_plotter.display_vol_surface(*vol_hk.get_vol_surface_data())
+    vol_plotter.display_vol_surface(*vol_hk.get_vol_surface_data(VolatilityModelType.SABR))
     logger.warning(f"Finished at {dtm.datetime.now()}")

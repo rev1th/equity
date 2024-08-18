@@ -1,25 +1,25 @@
-
 import pandas as pd
 import statsmodels.api as sm
 import numpy as np
 import logging
 
 from data_api import data_parser_hk
-from common import chrono
-from common.interpolator import Linear
+from common.chrono import tenor as tenor_lib
+from common.chrono import daycount
+from common.numeric.interpolator import Linear
 
 logger = logging.Logger(__name__)
 
-DAYCOUNT = chrono.DayCount.ACT365
+DAYCOUNT = daycount.DayCount.ACT365
 
 def get_hedge_ratio(contract_month: str) -> float:
-    val_date = chrono.get_last_valuation_date(calendar='HK')
+    val_date = tenor_lib.get_last_valuation_date(calendar='HK')
     contract_date = data_parser_hk.get_expiry_date(contract_month, settle=True)
     contract_dcf = DAYCOUNT.get_dcf(val_date, contract_date)
     tenors_rates = data_parser_hk.get_rates(val_date)
     rates_curve = []
     for tenor, rate in tenors_rates.items():
-        tenor_date = chrono.Tenor(tenor).get_date(val_date)
+        tenor_date = tenor_lib.Tenor(tenor).get_date(val_date)
         tenor_dcf = DAYCOUNT.get_dcf(val_date, tenor_date)
         rates_curve.append((tenor_dcf, rate))
     interp = Linear(rates_curve)

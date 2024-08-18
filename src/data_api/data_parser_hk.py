@@ -7,7 +7,7 @@ import json
 import pandas as pd
 import logging
 
-from common.data_model import DataField, DataPointType, OptionDataFlag, DataModel, SessionType
+from common.models.data import DataField, DataPointType, OptionDataFlag, DataModel, SessionType
 
 logger = logging.Logger(__name__)
 
@@ -250,7 +250,8 @@ def get_options_expiries(code: str) -> list:
     return request_get_json_data(OPTION_CONTRACT_EP, params={'ats': code})['conlist']
 
 def is_valid_live(data_fields: dict[str, any]) -> bool:
-    if data_fields[DataPointType.LAST] or (data_fields[DataPointType.BID] and data_fields[DataPointType.ASK]):
+    if data_fields[DataPointType.LAST] or \
+        (data_fields[DataPointType.BID] and data_fields[DataPointType.ASK]):
         return True
     return False
 
@@ -264,7 +265,7 @@ def get_options_chain(code: str, contract_id: str, session_type: SessionType = N
         'to': 'null',
     })
     # last_update = dtm.datetime.strptime(options_data['lastupd'], "%d/%m/%Y %H:%M")
-    fields = [DataPointType.LAST, DataPointType.BID, DataPointType.ASK]
+    fields = [DataPointType.LAST, DataPointType.BID, DataPointType.ASK, DataPointType.VOLUME]
     res = {}
     for row in options_data['optionlist']:
         strike = str_to_num(row['strike'])
