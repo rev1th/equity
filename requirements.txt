@@ -6,6 +6,7 @@ requests==2.31.*
 statsmodels==0.14.*
 numpy==1.24.*
 plotly==5.16.*
+dash_ag_grid==31.*
 py_lets_be_rational
 ./../common/dist/common-1.0-py3-none-any.whl
 ./../volatility/dist/volatility-1.0-py3-none-any.whl

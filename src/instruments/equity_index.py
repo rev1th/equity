@@ -1,4 +1,5 @@
 from pydantic.dataclasses import dataclass
+from dataclasses import field
 import datetime as dtm
 
 from common.models.base_instrument import BaseInstrument
@@ -7,8 +8,14 @@ from common.chrono.daycount import DayCount
 
 
 @dataclass
+class IndexComponent:
+    underlier: BaseInstrument
+    units: float
+
+@dataclass
 class EquityIndex(BaseInstrument):
-    pass
+    components: list[IndexComponent] = field(default_factory=list)
+    derivatives_id: str = None
 
 @dataclass
 class EquityIndexFuture(Future):

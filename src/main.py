@@ -1,51 +1,58 @@
-
 import datetime as dtm
 import logging
 
-from data_api import data_parser_hk
-from market import equity_hk, vol_hk
-
-from common import plotter
+from common.chrono.tenor import Tenor
+from common.app import plotter
 from volatility.lib import plotter as vol_plotter
 from volatility.models.vol_types import VolatilityModelType
+
+from data_api import hkex_client
+from market import hk_eq_vol, hk_equity
 
 logger = logging.Logger('')
 logger.setLevel(logging.DEBUG)
 
-SERIES_CODES = ['hsi', 'hstech']#'sizeindexes', 'industry', 
-INDEX_CODES = ['HSI', 'HTI']#'HHI',
 
-def get_stocks():
-    series_info = {}
-    for c in SERIES_CODES:
-        series_info.update(data_parser_hk.getComponents(c))
-    stocks_map = {}
-    for ic in series_info.values():
-        stocks_map.update(ic)
-    return set.union(*[set(ic.keys()) for ic in series_info.values()])
-
-data_parser_hk.set_token()
-def evaluate_betas(stock_ids: list[str], lookbacks: list[str] = ['1m', '3m', '6m', '1y']):
-    return equity_hk.get_stocks_beta(stock_ids, INDEX_CODES, lookbacks)
-
-def get_table_data():
-    table: dict[str, dict[str, float]] = {}
-    betas = evaluate_betas(get_stocks())
-    for k, v in betas.items():
-        for kk, vv in v.items():
-            table.setdefault(kk, {})[k] = {kkk: vvv[0] for kkk, vvv in vv.items()}
-    table['Correlation'] = equity_hk.get_correlations(get_stocks())
+def get_analytics_table(as_of: dtm.date = None) -> dict[str, dict[str, float]]:
+    stocks = hkex_client.get_stocks(True)
+    indices = hkex_client.get_indices(True)
+    table = {}
+    tenors = ['1m', '2m', '3m', '6m', '1y']
+    if as_of:
+        current_date = as_of
+    else:
+        current_date = hkex_client.get_last_date(indices[0].data_id)
+    for t in tenors:
+        lookback_date = Tenor(f'-{t}').get_date(current_date)
+        rets = hk_equity.get_returns(indices + stocks, lookback_date, to_date=current_date)
+        table.setdefault('Return', {})[t] = rets
+        beta_mtx = hk_equity.get_stocks_beta(stocks, indices, lookback_date, to_date=current_date)
+        for idx_n, vv in beta_mtx.items():
+            table.setdefault('Beta', {})[f'{t}-{idx_n}'] = {kkk: vvv[0] for kkk, vvv in vv.items()}
+        corrs = hk_equity.get_lag_correlations(stocks, lookback_date, to_date=current_date)
+        table.setdefault('Lag', {})[t] = corrs
+        current_date = lookback_date
     return table
 
 
+def get_futures_data():
+    indices = hkex_client.get_derivatives(True)
+    for idx in indices:
+        yield idx.name, hk_equity.get_index_futures_spread(idx), dict(title='Calendar Spreads', y2_format=',.3%')
+
+def get_option_models():
+    indices = hkex_client.get_derivatives()
+    vol_models = hk_eq_vol.construct([idx.derivatives_id for idx in indices])
+    return vol_models
+
 if __name__ == "__main__":
     logger.warning(f"Starting at {dtm.datetime.now()}")
-    # beta_mtx = evaluate_betas(get_stocks())
+    get_analytics_table()
     # stocks_beta_spread = equity_hk.get_stock_intraday_data(beta_mtx)
     # plotter.plot_series_multiple(stocks_beta_spread, title='Beta RV')
-    for idx in INDEX_CODES:
-        plotter.plot_series(equity_hk.get_index_futures_data(idx), title=idx)
-    # plotter.plot_series(*equity_hk.get_index_futures_spread(INDEX_CODES),
-    #                     title='Calendar Spreads', y2_format=',.3%')
-    vol_plotter.display_vol_surface(*vol_hk.get_vol_surface_data(VolatilityModelType.SABR))
+    indices = hkex_client.get_derivatives(True)
+    for idx in indices:
+        plotter.plot_series(*hk_equity.get_index_futures_spread(idx),
+                            title='Calendar Spreads', y2_format=',.3%')
+        vol_plotter.display_vol_surface(*hk_eq_vol.get_vol_surface_data(idx.derivatives_id, VolatilityModelType.SABR))
     logger.warning(f"Finished at {dtm.datetime.now()}")
