@@ -2,14 +2,15 @@ from common.models.market_data import MarketDataType, OptionDataFlag, SessionTyp
 from volatility.instruments.listed_option import CallOption, PutOption
 from volatility.models.listed_options_construct import ListedOptionsConstruct, ModelStrikeSlice, ModelStrikeLine
 
-from data_api import hkex_client
-from data_api import hkex_server
+from data_api import hkex_client, hkex_server
+from lib import analytics
 
 def get_vol_model(code: str, session_type: SessionType = None):
     price_type, weight_type = MarketDataType.MID, MarketDataType.SPREAD
     futures_list = hkex_client.get_futures_contracts(code, session_type=session_type)
     update_dtm, quotes = hkex_server.load_futures_quotes(code, session_type=session_type)
     value_date = update_dtm.date()
+    discount_curve = analytics.get_discount_curve(value_date)
     option_chain = []
     for future in futures_list:
         expiry = future.expiry
@@ -36,7 +37,7 @@ def get_vol_model(code: str, session_type: SessionType = None):
                     put_option.data[value_date] = price
                     put_weight = 1 / (strike_info[OptionDataFlag.PUT][weight_type])
             strike_lines.append(ModelStrikeLine(strike, call_option, put_option, call_weight, put_weight))
-        df = 1/(1 + 0.05 * future.get_expiry_dcf(value_date))
+        df = discount_curve.get_value(future.get_expiry_dcf(value_date))
         option_chain.append(ModelStrikeSlice(expiry, df, strike_lines))
     return ListedOptionsConstruct(value_date, option_chain, name=f'{code}-Vol')
 

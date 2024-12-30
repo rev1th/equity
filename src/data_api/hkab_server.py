@@ -2,7 +2,7 @@ import datetime as dtm
 from common import request_web
 
 TENORS = {
-    'Overnight': '0d',
+    'Overnight': '1d',
     '1 Week': '1w',
     '2 Weeks': '2w',
     '1 Month': '1m',
